@@ -36,9 +36,8 @@ app.innerHTML = `
   <main>
     <section class="page home" data-page="home">
       <div class="hero">
-        <p class="label">AI PERSONAL SHOPPER</p>
-        <h1 class="headline">See it. Shop it.</h1>
-        <p class="muted lead">Upload any outfit photo and get every piece, priced, with a link to buy.</p>
+        <h1 class="headline">Shop your inspo.</h1>
+        <p class="muted lead">Every piece, priced and linked.</p>
         <a class="btn" href="#/shop">UPLOAD A LOOK</a>
       </div>
       <ol class="steps">
