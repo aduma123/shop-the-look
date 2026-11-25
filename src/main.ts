@@ -37,7 +37,7 @@ app.innerHTML = `
     <section class="page home" data-page="home">
       <div class="hero">
         <h1 class="headline">Shop your inspo.</h1>
-        <p class="muted lead">Every piece, priced and linked.</p>
+        <p class="muted lead">Upload an outfit photo to see each piece, its price and where to buy it.</p>
         <a class="btn" href="#/shop">UPLOAD A LOOK</a>
       </div>
       <ol class="steps">
