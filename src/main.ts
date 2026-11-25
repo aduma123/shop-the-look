@@ -26,10 +26,40 @@ const app = document.querySelector<HTMLDivElement>("#app")!;
 
 app.innerHTML = `
   <header class="bar">
-    <span class="logo">SHOP THE LOOK</span>
-    <button class="link" id="reset" hidden>NEW LOOK</button>
+    <a class="logo" href="#/">SHOP THE LOOK</a>
+    <nav class="nav">
+      <button class="link" id="reset" hidden>NEW LOOK</button>
+      <a class="nav-link" href="#/shop" data-route="shop">SHOP</a>
+      <a class="nav-link" href="#/about" data-route="about">ABOUT</a>
+    </nav>
   </header>
-  <main id="view"></main>
+  <main>
+    <section class="page home" data-page="home">
+      <div class="hero">
+        <p class="label">AI PERSONAL SHOPPER</p>
+        <h1 class="headline">See it. Shop it.</h1>
+        <p class="muted lead">Upload any outfit photo and get every piece, priced, with a link to buy.</p>
+        <a class="btn" href="#/shop">UPLOAD A LOOK</a>
+      </div>
+      <ol class="steps">
+        <li><span class="cat">01</span><p>Upload an inspo photo or a model wearing the fit</p></li>
+        <li><span class="cat">02</span><p>Every item is identified, top to bottom</p></li>
+        <li><span class="cat">03</span><p>Get prices, retailers and links to shop</p></li>
+      </ol>
+    </section>
+
+    <section class="page about" data-page="about" hidden>
+      <p class="label">ABOUT</p>
+      <h1 class="headline">Shop The Look</h1>
+      <p>Found an outfit you love on social media, in a magazine or on the street? Shop The Look turns that picture into a shopping list.</p>
+      <p>Upload a photo and the app identifies each visible piece: outerwear, tops, bottoms, shoes, bags and accessories. It then searches online retailers for each one. When the brand can be recognized it finds the exact product; otherwise it finds the closest similar piece.</p>
+      <p>Each item comes with its price, the retailer and a link to buy, plus a total for the whole look.</p>
+      <p class="hint">Prices come from retailer listings found online and may change. Your photo is only used to analyze the look; the app does not save it.</p>
+      <a class="btn" href="#/shop">TRY IT</a>
+    </section>
+
+    <section class="page" data-page="shop" id="view" hidden></section>
+  </main>
   <input type="file" id="file" accept="image/jpeg,image/png,image/webp,image/gif" hidden />
 `;
 
@@ -37,7 +67,12 @@ const view = app.querySelector<HTMLElement>("#view")!;
 const fileInput = app.querySelector<HTMLInputElement>("#file")!;
 const resetBtn = app.querySelector<HTMLButtonElement>("#reset")!;
 
+type Route = "home" | "shop" | "about";
+let route: Route = "home";
+
 let busy = false;
+let hasLook = false; // a look is loading or shown in the shop view
+let run = 0; // bumps on every new look, so stale responses are ignored
 
 function esc(s: string): string {
   return s.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
@@ -62,7 +97,9 @@ function money(value: number, currency: string): string {
 
 function showUpload() {
   busy = false;
-  resetBtn.hidden = true;
+  hasLook = false;
+  run++;
+  updateReset();
   view.innerHTML = `
     <section class="upload" id="drop" tabindex="0" role="button" aria-label="Upload a photo">
       <p class="label">UPLOAD A LOOK</p>
@@ -178,18 +215,22 @@ async function start(file: File) {
     return;
   }
   busy = true;
-  resetBtn.hidden = false;
+  hasLook = true;
+  const id = ++run;
+  updateReset();
 
   let image: string;
   try {
     image = await toDataUrl(file);
   } catch {
+    if (id !== run) return;
     busy = false;
     showLayout("", errorPanel("This image couldn't be read."));
     bindRetry();
     return;
   }
 
+  if (id !== run) return;
   showLayout(image, loadingPanel());
 
   let panel: string;
@@ -205,6 +246,7 @@ async function start(file: File) {
     panel = errorPanel("Network error. Check your connection and try again.");
   }
 
+  if (id !== run) return;
   busy = false;
   const target = view.querySelector<HTMLElement>(".panel");
   if (target) target.innerHTML = panel;
@@ -225,10 +267,31 @@ fileInput.addEventListener("change", () => {
 });
 
 document.addEventListener("paste", (e) => {
+  if (route !== "shop") return;
   const file = Array.from(e.clipboardData?.files ?? []).find((f) => f.type.startsWith("image/"));
   if (file) start(file);
 });
 
 resetBtn.addEventListener("click", showUpload);
 
+function updateReset() {
+  resetBtn.hidden = !(route === "shop" && hasLook);
+}
+
+function render() {
+  const hash = location.hash.replace(/^#\/?/, "");
+  route = hash === "shop" || hash === "about" ? hash : "home";
+  app.querySelectorAll<HTMLElement>("[data-page]").forEach((el) => {
+    el.hidden = el.dataset.page !== route;
+  });
+  app.querySelectorAll<HTMLElement>("[data-route]").forEach((el) => {
+    el.classList.toggle("active", el.dataset.route === route);
+  });
+  updateReset();
+  window.scrollTo(0, 0);
+}
+
+window.addEventListener("hashchange", render);
+
 showUpload();
+render();
