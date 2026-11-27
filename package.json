@@ -16,5 +16,8 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.14.0"
+  },
+  "engines": {
+    "node": ">=24"
   }
 }
