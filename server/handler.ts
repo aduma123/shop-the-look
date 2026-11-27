@@ -1,6 +1,7 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 import Anthropic from "@anthropic-ai/sdk";
 import { analyzeLook, AnalyzeError, type ImageMediaType } from "./analyze.ts";
+import { clientIp, takeAnalysis } from "./rateLimit.ts";
 
 const MAX_BODY_BYTES = 12 * 1024 * 1024;
 const DATA_URL = /^data:(image\/(?:jpeg|png|gif|webp));base64,([A-Za-z0-9+/=]+)$/;
@@ -44,6 +45,12 @@ export async function handleApi(req: IncomingMessage, res: ServerResponse): Prom
     const match = typeof image === "string" ? DATA_URL.exec(image) : null;
     if (!match) {
       send(res, 400, { error: "Upload a JPEG, PNG, GIF or WebP image." });
+      return true;
+    }
+    const limit = takeAnalysis(clientIp(req));
+    if (!limit.ok) {
+      res.setHeader("Retry-After", String(limit.retryAfterSeconds));
+      send(res, 429, { error: limit.error });
       return true;
     }
     client ??= new Anthropic();
