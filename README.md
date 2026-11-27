@@ -1,5 +1,7 @@
 # Shop the Look
 
+**Live:** https://shop-the-look.onrender.com
+
 Upload an inspiration photo or a picture of someone wearing an outfit. The app lists every visible item with a price, the retailer and a link to buy it.
 
 It sends the photo to Claude, which identifies each piece and searches the web for the exact product, or a close match when the brand can't be identified.
