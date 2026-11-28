@@ -32,9 +32,48 @@ async function readBody(req: IncomingMessage): Promise<string> {
   return Buffer.concat(chunks).toString("utf8");
 }
 
-/** Handles POST /api/analyze. Returns false when the request is not for this route. */
+// Sites allowed to call this API from another domain, e.g. the static frontend:
+// ALLOWED_ORIGINS=https://shop-the-look-web.onrender.com (comma-separated for several).
+const allowedOrigins = new Set(
+  (process.env.ALLOWED_ORIGINS ?? "")
+    .split(",")
+    .map((o) => o.trim().replace(/\/$/, ""))
+    .filter(Boolean),
+);
+
+function applyCors(req: IncomingMessage, res: ServerResponse) {
+  const origin = req.headers.origin;
+  if (origin && allowedOrigins.has(origin)) {
+    res.setHeader("Access-Control-Allow-Origin", origin);
+    res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+    res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+    res.setHeader("Access-Control-Max-Age", "86400");
+  }
+  res.setHeader("Vary", "Origin");
+}
+
+/**
+ * Handles GET /health and POST /api/analyze. Returns false when the request is not for
+ * these routes.
+ */
 export async function handleApi(req: IncomingMessage, res: ServerResponse): Promise<boolean> {
-  if (!req.url?.startsWith("/api/analyze")) return false;
+  const path = req.url?.split("?")[0] ?? "";
+  if (path !== "/health" && path !== "/api/analyze") return false;
+
+  applyCors(req, res);
+  if (req.method === "OPTIONS") {
+    res.statusCode = 204;
+    res.end();
+    return true;
+  }
+
+  // Used by the frontend to wake the server early, and by hosts as a health check.
+  if (path === "/health") {
+    res.setHeader("Cache-Control", "no-store");
+    send(res, 200, { ok: true });
+    return true;
+  }
+
   if (req.method !== "POST") {
     send(res, 405, { error: "Method not allowed" });
     return true;

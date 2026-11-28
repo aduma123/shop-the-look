@@ -22,6 +22,45 @@ interface Look {
 
 const MAX_SIDE = 1568;
 
+// Backend base URL, set at build time when the frontend is hosted separately.
+// Empty means same origin (local dev, or frontend and backend on one server).
+const API = (import.meta.env.VITE_API_URL ?? "").replace(/\/$/, "");
+const WAKE_TIMEOUT_MS = 120_000;
+const WAKE_RETRY_MS = 3_000;
+
+let serverUp = false;
+let wakeUp: Promise<boolean> | null = null;
+
+/** Starts waking the backend, or joins an attempt already running. */
+function ensureAwake(): Promise<boolean> {
+  wakeUp ??= wakeServer().then((ok) => {
+    if (!ok) wakeUp = null; // gave up: the next call starts a fresh attempt
+    return ok;
+  });
+  return wakeUp;
+}
+
+/**
+ * Pings the backend until it answers. A free host puts the backend to sleep when idle,
+ * so this starts waking it the moment someone opens any page.
+ */
+async function wakeServer(): Promise<boolean> {
+  const deadline = Date.now() + WAKE_TIMEOUT_MS;
+  while (Date.now() < deadline) {
+    try {
+      const res = await fetch(`${API}/health`, { cache: "no-store" });
+      if (res.ok && (await res.json()).ok === true) {
+        serverUp = true;
+        return true;
+      }
+    } catch {
+      // Still waking up (or the host answered with its own page): try again.
+    }
+    await new Promise((r) => setTimeout(r, WAKE_RETRY_MS));
+  }
+  return false;
+}
+
 const app = document.querySelector<HTMLDivElement>("#app")!;
 
 app.innerHTML = `
@@ -133,6 +172,14 @@ function showLayout(imageUrl: string, panel: string) {
   `;
 }
 
+function wakingPanel(): string {
+  return `
+    <p class="label">STARTING UP</p>
+    <div class="progress"><span></span></div>
+    <p class="muted">Waking up the server. This can take up to a minute, then the analysis starts.</p>
+  `;
+}
+
 function loadingPanel(): string {
   return `
     <p class="label">ANALYZING LOOK</p>
@@ -230,11 +277,24 @@ async function start(file: File) {
   }
 
   if (id !== run) return;
-  showLayout(image, loadingPanel());
+
+  if (!serverUp) {
+    showLayout(image, wakingPanel());
+    const up = await ensureAwake();
+    if (id !== run) return;
+    if (!up) {
+      busy = false;
+      setPanel(errorPanel("The server didn't respond. Please try again in a minute."));
+      return;
+    }
+    setPanel(loadingPanel());
+  } else {
+    showLayout(image, loadingPanel());
+  }
 
   let panel: string;
   try {
-    const res = await fetch("/api/analyze", {
+    const res = await fetch(`${API}/api/analyze`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ image }),
@@ -247,8 +307,12 @@ async function start(file: File) {
 
   if (id !== run) return;
   busy = false;
+  setPanel(panel);
+}
+
+function setPanel(html: string) {
   const target = view.querySelector<HTMLElement>(".panel");
-  if (target) target.innerHTML = panel;
+  if (target) target.innerHTML = html;
   bindRetry();
 }
 
@@ -294,3 +358,4 @@ window.addEventListener("hashchange", render);
 
 showUpload();
 render();
+void ensureAwake();
