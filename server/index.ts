@@ -7,6 +7,8 @@ import { handleApi } from "./handler.ts";
 
 const root = resolve(fileURLToPath(new URL("../dist", import.meta.url)));
 const port = Number(process.env.PORT ?? 3000);
+// When the frontend is hosted separately, send page visits there instead of serving dist/.
+const frontendUrl = (process.env.FRONTEND_URL ?? "").trim().replace(/\/$/, "");
 
 const TYPES: Record<string, string> = {
   ".html": "text/html; charset=utf-8",
@@ -19,6 +21,15 @@ const TYPES: Record<string, string> = {
 
 createServer(async (req, res) => {
   if (await handleApi(req, res)) return;
+
+  if (frontendUrl && (req.method === "GET" || req.method === "HEAD")) {
+    // 302 rather than 301, so browsers don't cache it forever if FRONTEND_URL changes.
+    // Browsers keep the #/page part of the address across the redirect.
+    res.statusCode = 302;
+    res.setHeader("Location", frontendUrl + (req.url ?? "/"));
+    res.end();
+    return;
+  }
 
   const path = normalize(decodeURIComponent((req.url ?? "/").split("?")[0]));
   let file = join(root, path === "/" ? "index.html" : path);

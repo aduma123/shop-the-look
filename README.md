@@ -1,6 +1,6 @@
 # Shop the Look
 
-**Live:** https://shop-the-look.onrender.com
+**Live:** https://shopthelook-app.onrender.com
 
 Upload an inspiration photo or a picture of someone wearing an outfit. The app lists every visible item with a price, the retailer and a link to buy it.
 
@@ -27,7 +27,7 @@ The frontend and backend can run as two Render services. The frontend is a stati
 
 **Backend: Web Service**
 - Build: `npm ci && npm run build` · Start: `npm start`
-- Env: `ANTHROPIC_API_KEY`, `ALLOWED_ORIGINS=<frontend URL>`
+- Env: `ANTHROPIC_API_KEY`, `ALLOWED_ORIGINS=<frontend URL>`, `FRONTEND_URL=<frontend URL>` (redirects page visits to the static site)
 
 **Frontend: Static Site**
 - Build: `npm ci && npx vite build` · Publish directory: `dist`
