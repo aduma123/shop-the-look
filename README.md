@@ -21,6 +21,20 @@ npm run build    # type-check and build to dist/
 npm start        # production server on PORT (default 3000)
 ```
 
+## Deploy (Render, free)
+
+The frontend and backend can run as two Render services. The frontend is a static site, so it loads instantly and never sleeps. When any page opens, it pings the backend's `/health` route so the backend is usually awake by the time someone uploads.
+
+**Backend: Web Service**
+- Build: `npm ci && npm run build` · Start: `npm start`
+- Env: `ANTHROPIC_API_KEY`, `ALLOWED_ORIGINS=<frontend URL>`
+
+**Frontend: Static Site**
+- Build: `npm ci && npx vite build` · Publish directory: `dist`
+- Env: `VITE_API_URL=<backend URL>`
+
+Leave `VITE_API_URL` unset to serve the frontend from the backend on one service instead.
+
 ## Limits
 
 To protect your API bill, `/api/analyze` allows 10 analyses per visitor per hour and 200 in total per day. Change them with the `RATE_LIMIT_PER_HOUR` and `DAILY_LIMIT` environment variables. The counts reset when the server restarts, so also set a monthly spend limit in the Anthropic Console.
